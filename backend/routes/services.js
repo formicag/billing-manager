@@ -91,7 +91,7 @@ router.get('/:serviceId', async (req, res) => {
 router.put('/:serviceId', async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { billingCycleStart, predictedCost } = req.body;
+    const { billingCycleStart, predictedCost, enabled } = req.body;
     const firestore = req.app.locals.firestore;
 
     if (!SUPPORTED_SERVICES[serviceId]) {
@@ -108,6 +108,10 @@ router.put('/:serviceId', async (req, res) => {
 
     if (predictedCost !== undefined) {
       updateData.predictedCost = predictedCost;
+    }
+
+    if (enabled !== undefined) {
+      updateData.enabled = enabled;
     }
 
     await firestore.collection('services').doc(serviceId).set(updateData, { merge: true });

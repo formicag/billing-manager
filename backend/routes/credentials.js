@@ -114,6 +114,12 @@ router.post('/:serviceId', async (req, res) => {
       lastUpdated: new Date().toISOString()
     });
 
+    // Automatically enable the service when credentials are saved
+    await firestore.collection('services').doc(serviceId).set({
+      enabled: true,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
     res.json({
       success: true,
       serviceId,
@@ -216,6 +222,12 @@ router.delete('/:serviceId', async (req, res) => {
 
       // Delete from Firestore
       await firestore.collection('credentials').doc(serviceId).delete();
+
+      // Disable the service when credentials are deleted
+      await firestore.collection('services').doc(serviceId).set({
+        enabled: false,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
     }
 
     res.json({
