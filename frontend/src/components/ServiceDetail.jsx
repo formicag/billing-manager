@@ -65,14 +65,20 @@ const ServiceDetail = () => {
     setLoading(true);
     setError(null);
     try {
-      const [serviceData, costsData, resourceData] = await Promise.all([
+      const [serviceData, costsDataRaw, resourceDataRaw] = await Promise.all([
         apiService.getService(serviceId),
         apiService.getCosts({ serviceId, limit: 30 }),
         apiService.getResourceCosts(serviceId),
       ]);
 
       setService(serviceData);
+
+      // Extract costs array from response
+      const costsData = Array.isArray(costsDataRaw) ? costsDataRaw : (costsDataRaw.costs || []);
       setCosts(costsData);
+
+      // Extract resources array from response
+      const resourceData = Array.isArray(resourceDataRaw) ? resourceDataRaw : (resourceDataRaw.resources || []);
       setResourceCosts(resourceData);
 
       // Extract unique tags
@@ -122,10 +128,10 @@ const ServiceDetail = () => {
 
   // Prepare chart data
   const chartData = costs
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     .map(cost => ({
-      date: formatDate(cost.date),
-      cost: parseFloat(cost.amount) || 0,
+      date: formatDate(cost.timestamp),
+      cost: parseFloat(cost.totalCost) || 0,
     }));
 
   // Filter resources by selected tag
@@ -137,11 +143,11 @@ const ServiceDetail = () => {
 
   // Prepare resource breakdown data for chart
   const resourceChartData = filteredResources
-    .sort((a, b) => b.cost - a.cost)
+    .sort((a, b) => b.totalCost - a.totalCost)
     .slice(0, 10)
     .map(resource => ({
-      name: resource.resourceName || resource.resourceId,
-      cost: parseFloat(resource.cost) || 0,
+      name: resource.name || resource.resourceId,
+      cost: parseFloat(resource.totalCost) || 0,
     }));
 
   return (
@@ -319,13 +325,13 @@ const ServiceDetail = () => {
                         </TableHead>
                         <TableBody>
                           {filteredResources
-                            .sort((a, b) => b.cost - a.cost)
+                            .sort((a, b) => b.totalCost - a.totalCost)
                             .map((resource, index) => (
                               <TableRow key={index}>
-                                <TableCell>{resource.resourceName || resource.resourceId}</TableCell>
+                                <TableCell>{resource.name || resource.resourceId}</TableCell>
                                 <TableCell>{resource.resourceType || 'N/A'}</TableCell>
                                 <TableCell align="right">
-                                  {formatCurrency(resource.cost)}
+                                  {formatCurrency(resource.totalCost)}
                                 </TableCell>
                                 <TableCell>
                                   {resource.tags && Object.keys(resource.tags).length > 0 ? (
