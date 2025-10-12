@@ -21,7 +21,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Decode GCP credentials
-        run: echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | base64 -d > /tmp/gcp-creds.json
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d > /tmp/gcp-creds.json
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -77,7 +78,8 @@ jobs:
           npm install --production=false
 
       - name: Decode GCP credentials
-        run: echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | base64 -d > /tmp/gcp-creds.json
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d > /tmp/gcp-creds.json
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -96,7 +98,8 @@ jobs:
           npm run build
 
       - name: Decode Firebase credentials
-        run: echo "${{ secrets.FIREBASE_SA_KEY }}" | tr -d '\n' | base64 -d > /tmp/firebase-creds.json
+        run: |
+          echo "${{ secrets.FIREBASE_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d > /tmp/firebase-creds.json
 
       - name: Deploy to Firebase Hosting
         env:
