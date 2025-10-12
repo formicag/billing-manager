@@ -118,16 +118,25 @@ const CredentialManager = () => {
     }
   };
 
-  const handleOpenDialog = (serviceId = null) => {
+  const handleOpenDialog = async (serviceId = null) => {
     setSelectedService(serviceId);
+
     if (serviceId && credentials[serviceId]) {
-      // Editing existing credential - initialize with masked values
-      const fields = CREDENTIAL_FIELDS[serviceId] || [];
-      const initialData = {};
-      fields.forEach(field => {
-        initialData[field.key] = '********';
-      });
-      setFormData(initialData);
+      // Editing existing credential - load actual values
+      try {
+        const response = await apiService.revealCredential(serviceId);
+        const actualCredentials = response.credentials || response;
+        setFormData(actualCredentials);
+      } catch (err) {
+        // If reveal fails, use empty form
+        toast.error('Failed to load credentials: ' + err.message);
+        const fields = CREDENTIAL_FIELDS[serviceId] || [];
+        const initialData = {};
+        fields.forEach(field => {
+          initialData[field.key] = '';
+        });
+        setFormData(initialData);
+      }
     } else {
       // Adding new credential - initialize with defaults
       const fields = CREDENTIAL_FIELDS[serviceId] || [];
@@ -160,15 +169,7 @@ const CredentialManager = () => {
 
     setTesting(true);
     try {
-      // Remove masked values before testing
-      const cleanData = {};
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== '********') {
-          cleanData[key] = value;
-        }
-      });
-
-      await apiService.testCredential(selectedService, cleanData);
+      await apiService.testCredential(selectedService, formData);
       toast.success('Credentials are valid!');
     } catch (err) {
       toast.error('Credential test failed: ' + err.message);
@@ -182,15 +183,7 @@ const CredentialManager = () => {
 
     setSaving(true);
     try {
-      // Remove masked values before saving
-      const cleanData = {};
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== '********') {
-          cleanData[key] = value;
-        }
-      });
-
-      await apiService.saveCredential(selectedService, cleanData, selectedService);
+      await apiService.saveCredential(selectedService, formData, selectedService);
       toast.success('Credentials saved successfully');
       handleCloseDialog();
       loadData();
@@ -218,8 +211,9 @@ const CredentialManager = () => {
   const handleReveal = async (serviceId) => {
     setSelectedService(serviceId);
     try {
-      const data = await apiService.revealCredential(serviceId);
-      setRevealedData(data);
+      const response = await apiService.revealCredential(serviceId);
+      // Extract credentials from response
+      setRevealedData(response.credentials || response);
       setRevealDialogOpen(true);
     } catch (err) {
       toast.error('Failed to reveal credentials: ' + err.message);
