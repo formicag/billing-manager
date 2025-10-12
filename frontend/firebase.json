@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "billing-manager-gf-200f4",
     "public": "build",
     "ignore": [
       "firebase.json",
