@@ -63,7 +63,8 @@ const Dashboard = () => {
         apiService.getServices(),
         apiService.getCostSummary(),
       ]);
-      setServices(servicesData);
+      // Extract services array from response
+      setServices(Array.isArray(servicesData) ? servicesData : (servicesData.services || []));
       setSummary(summaryData);
     } catch (err) {
       setError(err.message);
