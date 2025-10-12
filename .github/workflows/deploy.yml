@@ -20,14 +20,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Decode GCP credentials
+      - name: Set GCP credentials
+        id: set-creds
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d > /tmp/gcp-creds.json
+          CREDS=$(echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d)
+          echo "::add-mask::$CREDS"
+          echo "CREDS=$CREDS" >> $GITHUB_OUTPUT
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_file: /tmp/gcp-creds.json
+          credentials_json: ${{ steps.set-creds.outputs.CREDS }}
 
       - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -77,14 +80,17 @@ jobs:
           cd frontend
           npm install --production=false
 
-      - name: Decode GCP credentials
+      - name: Set GCP credentials
+        id: set-creds
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d > /tmp/gcp-creds.json
+          CREDS=$(echo "${{ secrets.GCP_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d)
+          echo "::add-mask::$CREDS"
+          echo "CREDS=$CREDS" >> $GITHUB_OUTPUT
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_file: /tmp/gcp-creds.json
+          credentials_json: ${{ steps.set-creds.outputs.CREDS }}
 
       - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -97,13 +103,7 @@ jobs:
           export REACT_APP_API_URL=$(gcloud run services describe billing-api --region=$GCP_REGION --format='value(status.url)')
           npm run build
 
-      - name: Decode Firebase credentials
-        run: |
-          echo "${{ secrets.FIREBASE_SA_KEY }}" | tr -d '\n' | tr -d ' ' | base64 -d > /tmp/firebase-creds.json
-
       - name: Deploy to Firebase Hosting
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-creds.json
         run: |
           cd frontend
           npm install -g firebase-tools
