@@ -68,8 +68,12 @@ const BackfillManager = () => {
         apiService.getServices(),
         apiService.getBackfillJobs(),
       ]);
-      setServices(servicesData.filter(s => s.enabled));
-      setJobs(jobsData);
+      // Extract arrays from response
+      const services = Array.isArray(servicesData) ? servicesData : (servicesData.services || []);
+      setServices(services.filter(s => s.enabled));
+
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+      setJobs(jobs);
     } catch (err) {
       toast.error('Failed to load data: ' + err.message);
     } finally {
@@ -80,7 +84,8 @@ const BackfillManager = () => {
   const loadJobs = async () => {
     try {
       const jobsData = await apiService.getBackfillJobs();
-      setJobs(jobsData);
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+      setJobs(jobs);
     } catch (err) {
       // Silently fail on polling errors
       console.error('Failed to refresh jobs:', err);

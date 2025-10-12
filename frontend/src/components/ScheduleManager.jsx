@@ -62,11 +62,13 @@ const ScheduleManager = () => {
         apiService.getServices(),
         apiService.getSchedules(),
       ]);
-      setServices(servicesData);
+      // Extract arrays from response
+      setServices(Array.isArray(servicesData) ? servicesData : (servicesData.services || []));
 
       // Convert schedules array to object keyed by serviceId
       const schedMap = {};
-      schedulesData.forEach(sched => {
+      const schedArray = Array.isArray(schedulesData) ? schedulesData : (schedulesData.schedules || []);
+      schedArray.forEach(sched => {
         schedMap[sched.serviceId] = sched;
       });
       setSchedules(schedMap);
