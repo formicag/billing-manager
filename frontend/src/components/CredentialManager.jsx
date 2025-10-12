@@ -101,11 +101,13 @@ const CredentialManager = () => {
         apiService.getServices(),
         apiService.getCredentials(),
       ]);
-      setServices(servicesData);
+      // Extract services array from response
+      setServices(Array.isArray(servicesData) ? servicesData : (servicesData.services || []));
 
       // Convert credentials array to object keyed by serviceId
       const credMap = {};
-      credentialsData.forEach(cred => {
+      const credArray = Array.isArray(credentialsData) ? credentialsData : (credentialsData.credentials || []);
+      credArray.forEach(cred => {
         credMap[cred.serviceId] = cred;
       });
       setCredentials(credMap);
