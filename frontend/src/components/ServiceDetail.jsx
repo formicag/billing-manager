@@ -127,7 +127,7 @@ const ServiceDetail = () => {
   };
 
   // Prepare chart data
-  const chartData = costs
+  const chartData = (costs || [])
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     .map(cost => ({
       date: formatDate(cost.timestamp),
