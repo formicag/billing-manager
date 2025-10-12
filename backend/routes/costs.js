@@ -59,6 +59,8 @@ router.get('/summary', async (req, res) => {
 
     // Aggregate by service
     const summaryByService = {};
+    let totalCost = 0;
+    let lastUpdated = null;
 
     snapshot.forEach(doc => {
       const data = doc.data();
@@ -76,6 +78,7 @@ router.get('/summary', async (req, res) => {
 
       summaryByService[serviceId].totalCost += data.totalCost || 0;
       summaryByService[serviceId].count += 1;
+      totalCost += data.totalCost || 0;
 
       if (data.timestamp < summaryByService[serviceId].firstTimestamp) {
         summaryByService[serviceId].firstTimestamp = data.timestamp;
@@ -83,9 +86,18 @@ router.get('/summary', async (req, res) => {
       if (data.timestamp > summaryByService[serviceId].lastTimestamp) {
         summaryByService[serviceId].lastTimestamp = data.timestamp;
       }
+
+      // Track overall last updated timestamp
+      if (!lastUpdated || data.timestamp > lastUpdated) {
+        lastUpdated = data.timestamp;
+      }
     });
 
-    res.json({ summary: summaryByService });
+    res.json({
+      summary: summaryByService,
+      totalCost,
+      lastUpdated
+    });
   } catch (error) {
     console.error('Error fetching cost summary:', error);
     res.status(500).json({ error: error.message });

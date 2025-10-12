@@ -39,6 +39,8 @@ router.get('/', async (req, res) => {
         id: serviceId,
         ...SUPPORTED_SERVICES[serviceId],
         ...data,
+        currentCost: latestCost ? latestCost.totalCost : 0,
+        lastUpdated: latestCost ? latestCost.timestamp : null,
         latestCost: latestCost ? {
           amount: latestCost.totalCost,
           timestamp: latestCost.timestamp,
