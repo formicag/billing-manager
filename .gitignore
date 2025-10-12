@@ -48,6 +48,7 @@ ui-debug.log
 # GCP
 gcp-key.json
 service-account-key.json
+gcp-service-account-key.json
 *.pem
 *.key
 

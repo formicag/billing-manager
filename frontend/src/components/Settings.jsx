@@ -28,7 +28,6 @@ import apiService from '../services/api';
 const Settings = () => {
   const navigate = useNavigate();
   const [apiUrl, setApiUrl] = useState('');
-  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [healthStatus, setHealthStatus] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -138,7 +137,7 @@ const Settings = () => {
                 variant="contained"
                 startIcon={<SaveIcon />}
                 onClick={handleSave}
-                disabled={saving || !hasChanges}
+                disabled={!hasChanges}
               >
                 Save
               </Button>

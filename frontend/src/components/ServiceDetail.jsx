@@ -9,7 +9,6 @@ import {
   CircularProgress,
   Container,
   FormControl,
-  Grid,
   IconButton,
   InputLabel,
   MenuItem,
@@ -59,6 +58,7 @@ const ServiceDetail = () => {
 
   useEffect(() => {
     loadServiceData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId]);
 
   const loadServiceData = async () => {
