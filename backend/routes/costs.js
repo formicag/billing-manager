@@ -1,6 +1,7 @@
 // routes/costs.js - Cost data endpoints
 const express = require('express');
 const router = express.Router();
+const { collectCurrentMonthCosts } = require('../services/aws-collector');
 
 // GET /api/costs - Get cost data with optional filters
 router.get('/', async (req, res) => {
@@ -175,6 +176,8 @@ router.post('/collect', async (req, res) => {
   try {
     const { serviceId } = req.body;
     const firestore = req.app.locals.firestore;
+    const secretManager = req.app.locals.secretManager;
+    const projectId = req.app.locals.projectId;
 
     if (!serviceId) {
       return res.status(400).json({ error: 'serviceId is required' });
@@ -190,12 +193,37 @@ router.post('/collect', async (req, res) => {
       });
     }
 
-    // In a real implementation, this would trigger the cost collection job
-    // For now, we'll just acknowledge the request
+    // Only AWS is implemented for now
+    if (serviceId !== 'aws') {
+      return res.status(400).json({
+        error: `Cost collection not implemented for ${serviceId}`,
+        serviceId
+      });
+    }
+
+    // Get credentials from Secret Manager
+    const { secretName } = credDoc.data();
+    const [version] = await secretManager.accessSecretVersion({
+      name: `projects/${projectId}/secrets/${secretName}/versions/latest`
+    });
+    const credentials = JSON.parse(version.payload.data.toString('utf8'));
+
+    // Collect AWS costs for current month
+    const result = await collectCurrentMonthCosts(credentials);
+
+    // Store costs in Firestore
+    const batch = firestore.batch();
+    for (const cost of result.costs) {
+      const docRef = firestore.collection('costs').doc();
+      batch.set(docRef, cost);
+    }
+    await batch.commit();
+
     res.json({
       success: true,
-      message: 'Cost collection triggered',
+      message: 'Cost collection completed',
       serviceId,
+      costsCollected: result.count,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
