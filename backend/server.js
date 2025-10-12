@@ -35,7 +35,9 @@ app.locals.projectId = PROJECT_ID;
 app.use(helmet()); // Security headers
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
