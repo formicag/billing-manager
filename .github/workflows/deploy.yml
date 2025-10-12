@@ -95,5 +95,5 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SA_KEY }}
           channelId: live
-          projectId: ${{ secrets.GCP_PROJECT }}
+          projectId: billing-manager-gf-200f4
           entryPoint: frontend
