@@ -132,6 +132,18 @@ const ServiceDetail = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const getDashboardUrl = (serviceId) => {
+    const dashboardUrls = {
+      'aws': 'https://console.aws.amazon.com/billing/home#/',
+      'gcp': 'https://console.cloud.google.com/billing',
+      'google-workspace': 'https://admin.google.com/ac/billing',
+      'atlassian': 'https://admin.atlassian.com/',
+      'chatgpt': 'https://platform.openai.com/usage',
+      'cohere': 'https://dashboard.cohere.com/billing'
+    };
+    return dashboardUrls[serviceId];
+  };
+
   // Prepare chart data
   const chartData = (costs || [])
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
@@ -212,6 +224,26 @@ const ServiceDetail = () => {
                       color={service.enabled ? 'success' : 'default'}
                     />
                   </Box>
+                  {getDashboardUrl(serviceId) && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #444' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        href={getDashboardUrl(serviceId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ textTransform: 'none' }}
+                      >
+                        View Actual Costs in {service.name || serviceId.toUpperCase()} Dashboard →
+                      </Button>
+                      {(serviceId === 'chatgpt' || serviceId === 'cohere' || serviceId === 'atlassian') && (
+                        <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                          Note: {serviceId === 'atlassian' ? 'Atlassian' : serviceId === 'chatgpt' ? 'OpenAI' : 'Cohere'} doesn't provide detailed billing via API.
+                          Costs shown here are estimates. Check the dashboard above for actual costs.
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             )}
