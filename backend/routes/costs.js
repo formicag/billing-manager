@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { collectCurrentMonthCosts: collectAWSCosts } = require('../services/aws-collector');
 const { collectCurrentMonthCosts: collectGCPCosts } = require('../services/gcp-collector');
+const { collectCurrentMonthCosts: collectGoogleWorkspaceCosts } = require('../services/google-workspace-collector');
 
 // GET /api/costs - Get cost data with optional filters
 router.get('/', async (req, res) => {
@@ -214,6 +215,15 @@ router.post('/collect', async (req, res) => {
         });
       }
       result = await collectGCPCosts(credentials, billingAccountId);
+    } else if (serviceId === 'google-workspace') {
+      const { customerId, adminEmail } = credData;
+      if (!customerId || !adminEmail) {
+        return res.status(400).json({
+          error: 'Google Workspace Customer ID or Admin Email not configured',
+          serviceId
+        });
+      }
+      result = await collectGoogleWorkspaceCosts(credentials, customerId, adminEmail);
     } else {
       return res.status(400).json({
         error: `Cost collection not implemented for ${serviceId}`,
