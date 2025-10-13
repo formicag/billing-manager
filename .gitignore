@@ -49,6 +49,7 @@ ui-debug.log
 gcp-key.json
 service-account-key.json
 gcp-service-account-key.json
+gcp-billing-credentials.json
 *.pem
 *.key
 

@@ -5,8 +5,11 @@ Multi-cloud cost tracking and billing management application with dark mode UI.
 ## Features
 
 - **Multi-Service Support**: Track costs across AWS, GCP, Atlassian, Google Workspace, ChatGPT, and Cohere
+- **Budget & Alerts Display**: View configured budgets, alert thresholds, and notification channels for AWS and GCP
 - **Dashboard**: Real-time overview of all services and costs
 - **Cost Analytics**: Detailed cost breakdowns with charts and resource-level insights
+- **AWS Cost Explorer Integration**: Real-time AWS cost collection with service-level breakdown
+- **GCP BigQuery Integration**: Query GCP billing export for detailed cost analysis
 - **Credential Management**: Secure storage using GCP Secret Manager
 - **Automated Collection**: Scheduled cost collection with Cloud Scheduler
 - **Historical Backfill**: Import past cost data
@@ -52,10 +55,12 @@ billing-manager/
 
 ## Quick Start
 
+**New to the project?** Check out [QUICK-DEPLOY.md](./QUICK-DEPLOY.md) for a 15-minute deployment guide.
+
 ### Prerequisites
 
 - Node.js 18+
-- GCP account
+- GCP account with billing enabled
 - GitHub account
 - Firebase CLI: `npm install -g firebase-tools`
 - Google Cloud SDK
@@ -167,7 +172,11 @@ Use **Backfill** to import past cost data:
 - `GET /api/costs` - Get cost data
 - `GET /api/costs/summary` - Cost summary by service
 - `GET /api/costs/:serviceId/resources` - Resource-level costs
-- `POST /api/costs/collect` - Trigger collection
+- `POST /api/costs/collect` - Trigger collection (supports AWS & GCP)
+
+### Budgets
+- `GET /api/budgets` - Get all budgets across services
+- `GET /api/budgets/:serviceId` - Get budgets for specific service
 
 ### Credentials
 - `GET /api/credentials` - List configured credentials
@@ -262,23 +271,7 @@ frontend/src/
 
 ## Decommissioning
 
-To remove all resources:
-
-```bash
-# Delete Cloud Run services
-gcloud run services delete billing-api --region=europe-west2
-
-# Delete Firestore database
-gcloud firestore databases delete --database="(default)"
-
-# Delete secrets
-gcloud secrets delete [service]-credentials
-
-# Delete project (removes everything)
-gcloud projects delete [project-id]
-```
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed decommissioning steps.
+**Removing the application?** See [DECOMMISSION.md](./DECOMMISSION.md) for complete step-by-step removal guide with data backup instructions.
 
 ## Contributing
 
@@ -301,14 +294,18 @@ For issues or questions:
 
 ## Roadmap
 
-- [ ] Budget alerts and notifications
+- [x] Budget alerts and notifications display
+- [x] AWS Cost Explorer integration
+- [x] GCP BigQuery billing export integration
 - [ ] Cost optimization recommendations
-- [ ] Multi-user support
+- [ ] Email/Slack notifications for budget thresholds
+- [ ] Multi-user support with authentication
 - [ ] Custom dashboards
 - [ ] Export to CSV/PDF
-- [ ] Integration with more services
+- [ ] Integration with more services (Azure, Oracle Cloud)
 - [ ] Cost forecasting with ML
 - [ ] Mobile apps (iOS/Android)
+- [ ] Cost anomaly detection
 
 ---
 

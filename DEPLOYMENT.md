@@ -49,6 +49,10 @@ gcloud services enable secretmanager.googleapis.com
 gcloud services enable cloudscheduler.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
 gcloud services enable firebase.googleapis.com
+gcloud services enable bigquery.googleapis.com
+gcloud services enable bigquerydatatransfer.googleapis.com
+gcloud services enable cloudbilling.googleapis.com
+gcloud services enable billingbudgets.googleapis.com
 ```
 
 ## Step 3: Initialize Firestore
@@ -205,16 +209,110 @@ gcloud scheduler jobs create http collect-costs-daily \
 gcloud scheduler jobs run collect-costs-daily --location=europe-west2
 ```
 
-## Step 11: Test Application
+## Step 11: Configure GCP BigQuery Billing Export (Optional)
+
+For GCP cost tracking with real data:
+
+```bash
+# Get billing account ID
+gcloud billing accounts list
+
+export BILLING_ACCOUNT_ID="YOUR-BILLING-ACCOUNT-ID"
+
+# Create service account for billing
+gcloud iam service-accounts create gcp-billing-reader \
+  --display-name="GCP Billing Reader"
+
+# Grant billing viewer permissions
+gcloud billing accounts add-iam-policy-binding $BILLING_ACCOUNT_ID \
+  --member="serviceAccount:gcp-billing-reader@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/billing.viewer"
+
+# Grant BigQuery permissions
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:gcp-billing-reader@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/bigquery.dataViewer"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:gcp-billing-reader@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/bigquery.jobUser"
+
+# Create BigQuery dataset
+bq mk --dataset --location=US $PROJECT_ID:billing_data
+
+# Create and store credentials
+gcloud iam service-accounts keys create ~/gcp-billing-key.json \
+  --iam-account=gcp-billing-reader@$PROJECT_ID.iam.gserviceaccount.com
+
+# Store in Secret Manager
+gcloud secrets create gcp-credentials --data-file=~/gcp-billing-key.json
+
+# Grant Cloud Run access to secret
+gcloud secrets add-iam-policy-binding gcp-credentials \
+  --member="serviceAccount:$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+**Configure BigQuery Export** (must be done via Console):
+1. Go to: https://console.cloud.google.com/billing/[billing-account-id]/export
+2. Click "EDIT SETTINGS" for "Standard usage cost"
+3. Set Project: [your-project-id]
+4. Set Dataset: billing_data
+5. Click "SAVE"
+
+**Note**: Data will populate in 24-48 hours
+
+## Step 12: Configure AWS Cost Collection (Optional)
+
+For AWS cost tracking:
+
+```bash
+# Assuming you have AWS credentials
+# Create JSON file with AWS credentials
+cat > /tmp/aws-creds.json << EOF
+{
+  "accessKeyId": "YOUR_AWS_ACCESS_KEY",
+  "secretAccessKey": "YOUR_AWS_SECRET_KEY",
+  "region": "us-east-1"
+}
+EOF
+
+# Store in Secret Manager
+gcloud secrets create aws-credentials --data-file=/tmp/aws-creds.json
+
+# Grant access
+gcloud secrets add-iam-policy-binding aws-credentials \
+  --member="serviceAccount:$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Clean up
+rm /tmp/aws-creds.json
+```
+
+## Step 13: Test Application
 
 1. **Access frontend**: https://[project-id].web.app
 2. **Test backend**:
 ```bash
 curl https://[backend-url]/api/health
 ```
-3. **Add credentials** via UI
-4. **Configure schedule** for a service
-5. **Trigger cost collection** and verify data
+3. **Trigger cost collection**:
+```bash
+# For AWS
+curl -X POST https://[backend-url]/api/costs/collect \
+  -H "Content-Type: application/json" \
+  -d '{"serviceId": "aws"}'
+
+# For GCP
+curl -X POST https://[backend-url]/api/costs/collect \
+  -H "Content-Type: application/json" \
+  -d '{"serviceId": "gcp"}'
+```
+4. **View budgets**:
+```bash
+curl https://[backend-url]/api/budgets/aws
+curl https://[backend-url]/api/budgets/gcp
+```
 
 ## Local Development Setup
 
