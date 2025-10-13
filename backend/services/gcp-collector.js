@@ -1,5 +1,4 @@
 // services/gcp-collector.js - GCP Cloud Billing integration
-const { BigQueryClient } = require('@google-cloud/bigquery').v2;
 
 /**
  * Collect GCP costs for a given date range using BigQuery export
@@ -11,12 +10,8 @@ const { BigQueryClient } = require('@google-cloud/bigquery').v2;
  * @returns {Promise<Object>} Cost data
  */
 async function collectGCPCostsFromBigQuery(credentials, billingAccountId, startDate, endDate) {
-  const { BigQuery } = require('@google-cloud/bigquery');
-
-  const bigquery = new BigQuery({
-    credentials,
-    projectId: credentials.project_id,
-  });
+  // BigQuery implementation would go here
+  // Requires @google-cloud/bigquery package to be installed
 
   // Query to get daily costs grouped by service
   // Note: User needs to have BigQuery billing export configured
