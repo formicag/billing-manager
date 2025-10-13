@@ -21,8 +21,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-budgets": "^3.908.0",
     "@aws-sdk/client-cost-explorer": "^3.908.0",
     "@aws-sdk/client-sts": "^3.908.0",
+    "@google-cloud/billing-budgets": "^6.1.1",
     "@google-cloud/firestore": "^7.1.0",
     "@google-cloud/secret-manager": "^5.0.1",
     "cors": "^2.8.5",

@@ -54,6 +54,7 @@ const ServiceDetail = () => {
   const [resourceCosts, setResourceCosts] = useState([]);
   const [selectedTag, setSelectedTag] = useState('all');
   const [availableTags, setAvailableTags] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -65,10 +66,11 @@ const ServiceDetail = () => {
     setLoading(true);
     setError(null);
     try {
-      const [serviceData, costsDataRaw, resourceDataRaw] = await Promise.all([
+      const [serviceData, costsDataRaw, resourceDataRaw, budgetsDataRaw] = await Promise.all([
         apiService.getService(serviceId),
         apiService.getCosts({ serviceId, limit: 30 }),
         apiService.getResourceCosts(serviceId),
+        apiService.getBudgetsForService(serviceId),
       ]);
 
       setService(serviceData);
@@ -80,6 +82,10 @@ const ServiceDetail = () => {
       // Extract resources array from response
       const resourceData = Array.isArray(resourceDataRaw) ? resourceDataRaw : (resourceDataRaw.resources || []);
       setResourceCosts(resourceData);
+
+      // Extract budgets array from response
+      const budgetsData = Array.isArray(budgetsDataRaw) ? budgetsDataRaw : (budgetsDataRaw.budgets || []);
+      setBudgets(budgetsData);
 
       // Extract unique tags
       const tags = new Set();
@@ -254,6 +260,131 @@ const ServiceDetail = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Budgets and Alerts */}
+            {budgets.length > 0 && (
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Budgets & Alerts
+                  </Typography>
+                  {budgets.map((budget, index) => (
+                    <Box key={index} sx={{ mb: 3, pb: 3, borderBottom: index < budgets.length - 1 ? '1px solid #444' : 'none' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {budget.budgetName}
+                        </Typography>
+                        {budget.budgetLimit && (
+                          <Chip
+                            label={`${budget.budgetLimit.currency} ${budget.budgetLimit.amount.toFixed(2)} / ${budget.timeUnit || budget.calendarPeriod || 'MONTHLY'}`}
+                            color="primary"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+
+                      {/* AWS Budget Details */}
+                      {budget.serviceId === 'aws' && budget.calculatedSpend && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Actual Spend: ${budget.calculatedSpend.actualSpend.toFixed(2)}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Forecasted Spend: ${budget.calculatedSpend.forecastedSpend.toFixed(2)}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {/* Thresholds */}
+                      {budget.thresholds && budget.thresholds.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body2" fontWeight="bold" gutterBottom>
+                            Alert Thresholds:
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {budget.thresholds.map((threshold, idx) => (
+                              <Chip
+                                key={idx}
+                                label={`${threshold.threshold}%`}
+                                size="small"
+                                color="warning"
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+
+                      {/* AWS Notification Subscribers */}
+                      {budget.serviceId === 'aws' && budget.thresholds && budget.thresholds.some(t => t.subscribers?.length > 0) && (
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold" gutterBottom>
+                            Notifications sent to:
+                          </Typography>
+                          {budget.thresholds.map((threshold, idx) => (
+                            threshold.subscribers && threshold.subscribers.length > 0 && (
+                              <Box key={idx} sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  At {threshold.threshold}%:
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                                  {threshold.subscribers.map((sub, subIdx) => (
+                                    <Chip
+                                      key={subIdx}
+                                      label={`${sub.type}: ${sub.address}`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            )
+                          ))}
+                        </Box>
+                      )}
+
+                      {/* GCP Notification Channels */}
+                      {budget.serviceId === 'gcp' && budget.notificationChannels && budget.notificationChannels.length > 0 && (
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold" gutterBottom>
+                            Notification Channels:
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            {budget.notificationChannels.map((channel, idx) => (
+                              <Chip
+                                key={idx}
+                                label={channel}
+                                size="small"
+                                variant="outlined"
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+
+                      {/* GCP Pub/Sub Topic */}
+                      {budget.serviceId === 'gcp' && budget.pubsubTopic && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Pub/Sub Topic: {budget.pubsubTopic}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {/* GCP Default IAM Recipients */}
+                      {budget.serviceId === 'gcp' && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {budget.disableDefaultIamRecipients
+                              ? 'Default billing admins/users will NOT receive alerts'
+                              : 'Default billing admins/users will receive alerts'}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Resource Breakdown */}
             <Card sx={{ mb: 3 }}>

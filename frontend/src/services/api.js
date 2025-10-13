@@ -183,6 +183,17 @@ const apiService = {
     const response = await api.delete(`/api/backfill/jobs/${jobId}`);
     return response.data;
   },
+
+  // Budgets
+  async getBudgets() {
+    const response = await api.get('/api/budgets');
+    return response.data;
+  },
+
+  async getBudgetsForService(serviceId) {
+    const response = await api.get(`/api/budgets/${serviceId}`);
+    return response.data;
+  },
 };
 
 export default apiService;

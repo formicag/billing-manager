@@ -12,6 +12,7 @@ const scheduleRoutes = require('./routes/schedules');
 const serviceRoutes = require('./routes/services');
 const backfillRoutes = require('./routes/backfill');
 const healthRoutes = require('./routes/health');
+const budgetRoutes = require('./routes/budgets');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -66,6 +67,7 @@ app.use('/api/credentials', credentialRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/backfill', backfillRoutes);
+app.use('/api/budgets', budgetRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -79,7 +81,8 @@ app.get('/', (req, res) => {
       credentials: '/api/credentials',
       schedules: '/api/schedules',
       services: '/api/services',
-      backfill: '/api/backfill'
+      backfill: '/api/backfill',
+      budgets: '/api/budgets'
     }
   });
 });
