@@ -57,7 +57,7 @@ router.get('/:serviceId', async (req, res) => {
 router.post('/:serviceId', async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { credentials, credentialType } = req.body;
+    const { credentials, credentialType, customerId, adminEmail, billingAccountId } = req.body;
     const firestore = req.app.locals.firestore;
     const secretManager = req.app.locals.secretManager;
     const projectId = req.app.locals.projectId;
@@ -107,12 +107,19 @@ router.post('/:serviceId', async (req, res) => {
     }
 
     // Store metadata in Firestore
-    await firestore.collection('credentials').doc(serviceId).set({
+    const metadata = {
       serviceId,
       credentialType: credentialType || 'api-key',
       secretName,
       lastUpdated: new Date().toISOString()
-    });
+    };
+
+    // Add optional service-specific metadata
+    if (customerId) metadata.customerId = customerId;
+    if (adminEmail) metadata.adminEmail = adminEmail;
+    if (billingAccountId) metadata.billingAccountId = billingAccountId;
+
+    await firestore.collection('credentials').doc(serviceId).set(metadata);
 
     // Automatically enable the service when credentials are saved
     await firestore.collection('services').doc(serviceId).set({
