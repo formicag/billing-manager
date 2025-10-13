@@ -4,6 +4,9 @@ const router = express.Router();
 const { collectCurrentMonthCosts: collectAWSCosts } = require('../services/aws-collector');
 const { collectCurrentMonthCosts: collectGCPCosts } = require('../services/gcp-collector');
 const { collectCurrentMonthCosts: collectGoogleWorkspaceCosts } = require('../services/google-workspace-collector');
+const { collectCurrentMonthCosts: collectAtlassianCosts } = require('../services/atlassian-collector');
+const { collectCurrentMonthCosts: collectChatGPTCosts } = require('../services/chatgpt-collector');
+const { collectCurrentMonthCosts: collectCohereCosts } = require('../services/cohere-collector');
 
 // GET /api/costs - Get cost data with optional filters
 router.get('/', async (req, res) => {
@@ -224,6 +227,12 @@ router.post('/collect', async (req, res) => {
         });
       }
       result = await collectGoogleWorkspaceCosts(credentials, customerId, adminEmail);
+    } else if (serviceId === 'atlassian') {
+      result = await collectAtlassianCosts(credentials);
+    } else if (serviceId === 'chatgpt') {
+      result = await collectChatGPTCosts(credentials);
+    } else if (serviceId === 'cohere') {
+      result = await collectCohereCosts(credentials);
     } else {
       return res.status(400).json({
         error: `Cost collection not implemented for ${serviceId}`,
