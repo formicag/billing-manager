@@ -1,7 +1,8 @@
 // routes/costs.js - Cost data endpoints
 const express = require('express');
 const router = express.Router();
-const { collectCurrentMonthCosts } = require('../services/aws-collector');
+const { collectCurrentMonthCosts: collectAWSCosts } = require('../services/aws-collector');
+const { collectCurrentMonthCosts: collectGCPCosts } = require('../services/gcp-collector');
 
 // GET /api/costs - Get cost data with optional filters
 router.get('/', async (req, res) => {
@@ -193,23 +194,32 @@ router.post('/collect', async (req, res) => {
       });
     }
 
-    // Only AWS is implemented for now
-    if (serviceId !== 'aws') {
-      return res.status(400).json({
-        error: `Cost collection not implemented for ${serviceId}`,
-        serviceId
-      });
-    }
-
     // Get credentials from Secret Manager
-    const { secretName } = credDoc.data();
+    const credData = credDoc.data();
+    const { secretName, billingAccountId } = credData;
     const [version] = await secretManager.accessSecretVersion({
       name: `projects/${projectId}/secrets/${secretName}/versions/latest`
     });
     const credentials = JSON.parse(version.payload.data.toString('utf8'));
 
-    // Collect AWS costs for current month
-    const result = await collectCurrentMonthCosts(credentials);
+    // Collect costs based on service type
+    let result;
+    if (serviceId === 'aws') {
+      result = await collectAWSCosts(credentials);
+    } else if (serviceId === 'gcp') {
+      if (!billingAccountId) {
+        return res.status(400).json({
+          error: 'GCP billing account ID not configured',
+          serviceId
+        });
+      }
+      result = await collectGCPCosts(credentials, billingAccountId);
+    } else {
+      return res.status(400).json({
+        error: `Cost collection not implemented for ${serviceId}`,
+        serviceId
+      });
+    }
 
     // Store costs in Firestore
     const batch = firestore.batch();
@@ -224,7 +234,8 @@ router.post('/collect', async (req, res) => {
       message: 'Cost collection completed',
       serviceId,
       costsCollected: result.count,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      warning: result.warning // Include warning if present (e.g., for GCP BigQuery export requirement)
     });
   } catch (error) {
     console.error('Error triggering cost collection:', error);
