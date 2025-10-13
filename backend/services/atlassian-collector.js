@@ -28,14 +28,23 @@ async function collectAtlassianCosts(credentials) {
 
     // Get organization details
     let organizations = [];
-    try {
-      const orgResponse = await axios.get(
-        'https://api.atlassian.com/admin/v1/orgs',
-        { headers }
-      );
-      organizations = orgResponse.data.data || [];
-    } catch (error) {
-      console.log('Could not fetch organizations:', error.message);
+
+    // If cloudId is provided, use it directly
+    if (cloudId) {
+      console.log(`Using provided Cloud ID: ${cloudId}`);
+      organizations = [{ id: cloudId, name: 'Atlassian Organization' }];
+    } else {
+      // Otherwise, try to fetch all organizations
+      try {
+        const orgResponse = await axios.get(
+          'https://api.atlassian.com/admin/v1/orgs',
+          { headers }
+        );
+        organizations = orgResponse.data.data || [];
+        console.log(`Found ${organizations.length} organizations`);
+      } catch (error) {
+        console.log('Could not fetch organizations:', error.message);
+      }
     }
 
     // Atlassian product pricing (approximate monthly costs in USD)
