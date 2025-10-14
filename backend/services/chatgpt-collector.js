@@ -48,56 +48,96 @@ async function collectChatGPTCosts(credentials) {
       'dall-e-2': { input: 0.02, output: 0, name: 'DALL-E 2 (per image)' }
     };
 
-    // Try to get usage data (note: OpenAI usage API is limited)
-    // We'll estimate based on common patterns since detailed billing data isn't available via API
+    // Try to get actual usage data from OpenAI API
     let totalCost = 0;
     const resources = [];
+    const usageByModel = {};
 
     try {
-      // Check if we can access organization info
-      const orgResponse = await axios.get(
-        'https://api.openai.com/v1/organization',
-        { headers }
-      );
+      // Get usage for the last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
 
-      // Note: OpenAI doesn't provide detailed usage/billing via API
-      // This is a placeholder for when/if they add it
-      console.log('Organization info retrieved');
+      // OpenAI usage API requires checking each day individually
+      const promises = [];
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        promises.push(
+          axios.get(`https://api.openai.com/v1/usage?date=${dateStr}`, { headers })
+            .then(response => ({ date: dateStr, data: response.data }))
+            .catch(error => {
+              console.log(`Could not fetch usage for ${dateStr}:`, error.message);
+              return { date: dateStr, data: null };
+            })
+        );
+      }
+
+      const results = await Promise.all(promises);
+
+      // Process usage data
+      for (const result of results) {
+        if (!result.data || !result.data.data) continue;
+
+        for (const usage of result.data.data) {
+          const modelId = usage.snapshot_id || 'unknown';
+          const inputTokens = usage.n_context_tokens_total || 0;
+          const outputTokens = usage.n_generated_tokens_total || 0;
+
+          if (!usageByModel[modelId]) {
+            usageByModel[modelId] = {
+              inputTokens: 0,
+              outputTokens: 0
+            };
+          }
+
+          usageByModel[modelId].inputTokens += inputTokens;
+          usageByModel[modelId].outputTokens += outputTokens;
+        }
+      }
+
+      console.log(`Found usage for ${Object.keys(usageByModel).length} models`);
     } catch (error) {
-      console.log('Could not fetch organization info:', error.message);
+      console.log('Could not fetch usage data:', error.message);
     }
 
-    // Since OpenAI doesn't provide usage data via API, we'll create estimated placeholders
-    // Users should manually enter their costs from the OpenAI dashboard
-    const estimatedModels = [
-      { model: 'gpt-4o', tokens: 1000000, inputRatio: 0.6 },
-      { model: 'gpt-3.5-turbo', tokens: 500000, inputRatio: 0.6 }
-    ];
+    // Calculate costs from actual usage
+    if (Object.keys(usageByModel).length > 0) {
+      for (const [modelId, usage] of Object.entries(usageByModel)) {
+        // Try to match model ID to pricing (use gpt-4o-mini as default for unknown)
+        const pricing = modelPricing[modelId] || modelPricing['gpt-4o-mini'];
 
-    for (const usage of estimatedModels) {
-      const pricing = modelPricing[usage.model];
-      if (!pricing) continue;
+        const inputCost = (usage.inputTokens / 1000) * pricing.input;
+        const outputCost = (usage.outputTokens / 1000) * pricing.output;
+        const modelCost = inputCost + outputCost;
 
-      const inputTokens = usage.tokens * usage.inputRatio;
-      const outputTokens = usage.tokens * (1 - usage.inputRatio);
+        totalCost += modelCost;
 
-      const inputCost = (inputTokens / 1000) * pricing.input;
-      const outputCost = (outputTokens / 1000) * pricing.output;
-      const modelCost = inputCost + outputCost;
-
-      totalCost += modelCost;
-
+        resources.push({
+          resourceId: modelId,
+          name: pricing.name || modelId,
+          type: 'OpenAI Model',
+          cost: modelCost,
+          tags: {
+            model: modelId,
+            inputTokens: usage.inputTokens.toString(),
+            outputTokens: usage.outputTokens.toString(),
+            inputCostPer1K: pricing.input.toString(),
+            outputCostPer1K: pricing.output.toString(),
+            source: 'OpenAI Usage API'
+          }
+        });
+      }
+    } else {
+      // No usage found - add a $0 placeholder
+      console.log('No usage found in the last 30 days');
       resources.push({
-        resourceId: usage.model,
-        name: pricing.name,
+        resourceId: 'no-usage',
+        name: 'No Usage',
         type: 'OpenAI Model',
-        cost: modelCost,
+        cost: 0,
         tags: {
-          model: usage.model,
-          estimatedTokens: usage.tokens.toString(),
-          inputCostPer1K: pricing.input.toString(),
-          outputCostPer1K: pricing.output.toString(),
-          note: 'Estimated usage - check OpenAI dashboard for actual costs'
+          note: 'No API usage detected in the last 30 days. Check OpenAI dashboard for details.'
         }
       });
     }
@@ -113,10 +153,13 @@ async function collectChatGPTCosts(credentials) {
       resources: resources,
       metadata: {
         granularity: 'DAILY',
-        source: 'OpenAI API (Estimated)',
-        note: 'OpenAI does not provide detailed usage data via API. These are estimated costs. Please check your OpenAI dashboard (https://platform.openai.com/usage) for actual usage and costs.',
+        source: 'OpenAI Usage API',
+        note: totalCost === 0
+          ? 'No API usage detected in the last 30 days. Costs shown are actual usage from OpenAI API.'
+          : 'Costs calculated from actual API usage in the last 30 days.',
         modelCount: resources.length,
-        dashboardUrl: 'https://platform.openai.com/usage'
+        dashboardUrl: 'https://platform.openai.com/usage',
+        last30Days: true
       }
     }];
 
@@ -124,11 +167,13 @@ async function collectChatGPTCosts(credentials) {
       success: true,
       costs,
       count: costs.length,
-      warning: 'OpenAI API does not provide detailed billing data. These are estimated costs based on typical usage patterns. Check your OpenAI dashboard for actual costs.',
+      warning: totalCost === 0
+        ? 'No OpenAI API usage detected in the last 30 days. If you have usage, check your OpenAI dashboard.'
+        : undefined,
       summary: {
         totalModels: resources.length,
-        estimatedDailyCost: totalCost,
-        estimatedMonthlyCost: totalCost * 30
+        actualMonthlyCost: totalCost,
+        last30DaysUsage: true
       }
     };
   } catch (error) {
