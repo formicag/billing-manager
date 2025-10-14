@@ -54,26 +54,27 @@ async function collectChatGPTCosts(credentials) {
     const usageByModel = {};
 
     try {
-      // Get usage for the last 30 days
+      // Get usage for the last 7 days only (to avoid rate limits)
+      // OpenAI's free tier has strict rate limits
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      startDate.setDate(startDate.getDate() - 7);
 
       // OpenAI usage API requires checking each day individually
-      const promises = [];
+      // Add delays to avoid rate limiting
+      const results = [];
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
-        promises.push(
-          axios.get(`https://api.openai.com/v1/usage?date=${dateStr}`, { headers })
-            .then(response => ({ date: dateStr, data: response.data }))
-            .catch(error => {
-              console.log(`Could not fetch usage for ${dateStr}:`, error.message);
-              return { date: dateStr, data: null };
-            })
-        );
+        try {
+          const response = await axios.get(`https://api.openai.com/v1/usage?date=${dateStr}`, { headers });
+          results.push({ date: dateStr, data: response.data });
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.log(`Could not fetch usage for ${dateStr}:`, error.message);
+          results.push({ date: dateStr, data: null });
+        }
       }
-
-      const results = await Promise.all(promises);
 
       // Process usage data
       for (const result of results) {
@@ -130,14 +131,14 @@ async function collectChatGPTCosts(credentials) {
       }
     } else {
       // No usage found - add a $0 placeholder
-      console.log('No usage found in the last 30 days');
+      console.log('No usage found in the last 7 days');
       resources.push({
         resourceId: 'no-usage',
         name: 'No Usage',
         type: 'OpenAI Model',
         cost: 0,
         tags: {
-          note: 'No API usage detected in the last 30 days. Check OpenAI dashboard for details.'
+          note: 'No API usage detected in the last 7 days. Check OpenAI dashboard for details.'
         }
       });
     }
@@ -155,11 +156,11 @@ async function collectChatGPTCosts(credentials) {
         granularity: 'DAILY',
         source: 'OpenAI Usage API',
         note: totalCost === 0
-          ? 'No API usage detected in the last 30 days. Costs shown are actual usage from OpenAI API.'
-          : 'Costs calculated from actual API usage in the last 30 days.',
+          ? 'No API usage detected in the last 7 days. Costs shown are actual usage from OpenAI API.'
+          : 'Costs calculated from actual API usage in the last 7 days.',
         modelCount: resources.length,
         dashboardUrl: 'https://platform.openai.com/usage',
-        last30Days: true
+        last7Days: true
       }
     }];
 
@@ -168,12 +169,12 @@ async function collectChatGPTCosts(credentials) {
       costs,
       count: costs.length,
       warning: totalCost === 0
-        ? 'No OpenAI API usage detected in the last 30 days. If you have usage, check your OpenAI dashboard.'
+        ? 'No OpenAI API usage detected in the last 7 days. If you have usage, check your OpenAI dashboard.'
         : undefined,
       summary: {
         totalModels: resources.length,
-        actualMonthlyCost: totalCost,
-        last30DaysUsage: true
+        actualWeeklyCost: totalCost,
+        last7DaysUsage: true
       }
     };
   } catch (error) {
