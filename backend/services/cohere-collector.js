@@ -55,39 +55,18 @@ async function collectCohereCosts(credentials) {
     }
 
     // Note: Cohere doesn't provide detailed usage/billing via API
-    // We'll create estimated placeholders based on typical usage
-    const estimatedModels = [
-      { model: 'command-r', tokens: 500000, inputRatio: 0.7 },
-      { model: 'embed-english-v3.0', tokens: 1000000, inputRatio: 1.0 }
-    ];
+    // Return $0 since we can't get real data
+    console.log('No usage data available from Cohere API');
 
-    for (const usage of estimatedModels) {
-      const pricing = modelPricing[usage.model];
-      if (!pricing) continue;
-
-      const inputTokens = usage.tokens * usage.inputRatio;
-      const outputTokens = usage.tokens * (1 - usage.inputRatio);
-
-      const inputCost = (inputTokens / 1000000) * pricing.input;
-      const outputCost = (outputTokens / 1000000) * pricing.output;
-      const modelCost = inputCost + outputCost;
-
-      totalCost += modelCost;
-
-      resources.push({
-        resourceId: usage.model,
-        name: pricing.name,
-        type: 'Cohere Model',
-        cost: modelCost,
-        tags: {
-          model: usage.model,
-          estimatedTokens: usage.tokens.toString(),
-          inputCostPer1M: pricing.input.toString(),
-          outputCostPer1M: pricing.output.toString(),
-          note: 'Estimated usage - check Cohere dashboard for actual costs'
-        }
-      });
-    }
+    resources.push({
+      resourceId: 'no-usage',
+      name: 'No Usage Data',
+      type: 'Cohere Model',
+      cost: 0,
+      tags: {
+        note: 'Cohere does not provide usage/billing data via API. Check Cohere dashboard for actual costs.'
+      }
+    });
 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -100,8 +79,8 @@ async function collectCohereCosts(credentials) {
       resources: resources,
       metadata: {
         granularity: 'DAILY',
-        source: 'Cohere API (Estimated)',
-        note: 'Cohere does not provide detailed usage data via API. These are estimated costs. Please check your Cohere dashboard (https://dashboard.cohere.com/billing) for actual usage and costs.',
+        source: 'Cohere API',
+        note: 'Cohere does not provide usage/billing data via API. Check your Cohere dashboard for actual costs.',
         modelCount: resources.length,
         dashboardUrl: 'https://dashboard.cohere.com/billing'
       }
@@ -111,11 +90,10 @@ async function collectCohereCosts(credentials) {
       success: true,
       costs,
       count: costs.length,
-      warning: 'Cohere API does not provide detailed billing data. These are estimated costs based on typical usage patterns. Check your Cohere dashboard for actual costs.',
+      warning: 'Cohere API does not provide usage/billing data. Check your Cohere dashboard for actual costs.',
       summary: {
-        totalModels: resources.length,
-        estimatedDailyCost: totalCost,
-        estimatedMonthlyCost: totalCost * 30
+        actualCost: 0,
+        note: 'No API usage data available'
       }
     };
   } catch (error) {
