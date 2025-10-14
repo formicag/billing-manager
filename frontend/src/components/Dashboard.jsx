@@ -198,58 +198,121 @@ const Dashboard = () => {
           <>
             {/* Summary Statistics */}
             {summary && (
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
+              <>
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Typography color="text.secondary" gutterBottom>
+                          Total Services
+                        </Typography>
+                        <Typography variant="h4">
+                          {services.length}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Typography color="text.secondary" gutterBottom>
+                          Active Services
+                        </Typography>
+                        <Typography variant="h4">
+                          {services.filter(s => s.enabled).length}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Typography color="text.secondary" gutterBottom>
+                          Total Cost (MTD)
+                        </Typography>
+                        <Typography variant="h4">
+                          {formatCurrency(summary.totalCost || 0)}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Typography color="text.secondary" gutterBottom>
+                          Last Updated
+                        </Typography>
+                        <Typography variant="h6" sx={{ mt: 1 }}>
+                          {summary.lastUpdated
+                            ? new Date(summary.lastUpdated).toLocaleString()
+                            : 'N/A'}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Cost Breakdown by Service */}
+                {summary.summary && Object.keys(summary.summary).length > 0 && (
+                  <Card sx={{ mb: 4 }}>
                     <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Total Services
+                      <Typography variant="h6" gutterBottom>
+                        Cost Breakdown (MTD)
                       </Typography>
-                      <Typography variant="h4">
-                        {services.length}
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        See how much each service contributes to your total costs
                       </Typography>
+                      <Box sx={{ mt: 2 }}>
+                        {Object.entries(summary.summary)
+                          .sort((a, b) => b[1].totalCost - a[1].totalCost)
+                          .map(([serviceId, serviceData]) => {
+                            const service = services.find(s => s.id === serviceId);
+                            const serviceName = service?.name || serviceId.toUpperCase();
+                            const percentage = summary.totalCost > 0
+                              ? ((serviceData.totalCost / summary.totalCost) * 100).toFixed(1)
+                              : 0;
+
+                            return (
+                              <Box
+                                key={serviceId}
+                                sx={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  mb: 2,
+                                  pb: 2,
+                                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="h6">
+                                    {getServiceIcon(serviceId)}
+                                  </Typography>
+                                  <Box>
+                                    <Typography variant="body1" fontWeight="medium">
+                                      {serviceName}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {serviceData.count} data point{serviceData.count !== 1 ? 's' : ''}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                                <Box sx={{ textAlign: 'right' }}>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {formatCurrency(serviceData.totalCost)}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {percentage}% of total
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            );
+                          })}
+                      </Box>
                     </CardContent>
                   </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Active Services
-                      </Typography>
-                      <Typography variant="h4">
-                        {services.filter(s => s.enabled).length}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Total Cost (MTD)
-                      </Typography>
-                      <Typography variant="h4">
-                        {formatCurrency(summary.totalCost || 0)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Last Updated
-                      </Typography>
-                      <Typography variant="h6" sx={{ mt: 1 }}>
-                        {summary.lastUpdated
-                          ? new Date(summary.lastUpdated).toLocaleString()
-                          : 'N/A'}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
+                )}
+              </>
             )}
 
             {/* Service Cards */}

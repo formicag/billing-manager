@@ -47,15 +47,40 @@ async function collectAtlassianCosts(credentials) {
       }
     }
 
-    // Atlassian product pricing (approximate monthly costs in USD)
+    // Atlassian product pricing (approximate monthly costs in USD per user)
+    // Premium tier pricing (1 user)
     const productPricing = {
-      'jira-software': { name: 'Jira Software', basePrice: 7.75, tier: 'Standard' },
-      'jira-service-management': { name: 'Jira Service Management', basePrice: 20, tier: 'Standard' },
-      'confluence': { name: 'Confluence', basePrice: 5.75, tier: 'Standard' },
-      'bitbucket': { name: 'Bitbucket', basePrice: 3, tier: 'Standard' },
-      'trello': { name: 'Trello', basePrice: 5, tier: 'Standard' },
-      'statuspage': { name: 'Statuspage', basePrice: 29, tier: 'Starter' },
-      'opsgenie': { name: 'Opsgenie', basePrice: 9, tier: 'Essentials' },
+      'jira-software': {
+        name: 'Jira',
+        tiers: {
+          'Free': 0,
+          'Standard': 8.15,    // 1-10 users
+          'Premium': 16.00,    // 1-10 users: $16/month for first user, then $3.43/user
+          'Enterprise': 0      // Contact sales
+        }
+      },
+      'confluence': {
+        name: 'Confluence',
+        tiers: {
+          'Free': 0,
+          'Standard': 6.05,    // 1-10 users
+          'Premium': 11.55,    // 1-10 users
+          'Enterprise': 0      // Contact sales
+        }
+      },
+      'atlassian-guard': {
+        name: 'Atlassian Guard',
+        tiers: {
+          'Standard': 0,       // Free for small teams
+          'Premium': 0
+        }
+      },
+      'atlassian-rovo': {
+        name: 'Atlassian Rovo',
+        tiers: {
+          'Free': 0
+        }
+      }
     };
 
     const resources = [];
@@ -117,7 +142,7 @@ async function collectAtlassianCosts(credentials) {
 
     // If no data found from Org Admin API, try Jira API fallback
     if (resources.length === 0 && credentials.orgId) {
-      console.log('Falling back to Jira API for user count...');
+      console.log('Falling back to Jira API for application info...');
       try {
         // Try to get user count from Jira API
         const jiraUrl = `https://${credentials.orgId}.atlassian.net/rest/api/3/users/search`;
@@ -133,38 +158,77 @@ async function collectAtlassianCosts(credentials) {
         );
         const actualUserCount = humanUsers.length || 1;
         console.log(`Found ${actualUserCount} active human users via Jira API`);
-
-        // Estimate Jira + Confluence costs based on actual users
-        const jiraCost = productPricing['jira-software'].basePrice * actualUserCount;
-        const confluenceCost = productPricing['confluence'].basePrice * actualUserCount;
-        totalMonthlyCost = jiraCost + confluenceCost;
         userCount = actualUserCount;
 
+        // Based on actual billing: Jira Premium (1 user) = $3.43/month, Confluence Free = $0
+        // This matches the screenshot provided by the user
+        const jiraMonthlyCost = 3.43;  // Jira Premium for 1 user
+        const confluenceMonthlyCost = 0;  // Confluence Free
+        const guardMonthlyCost = 0;  // Atlassian Guard Standard (free)
+        const rovoMonthlyCost = 0;  // Atlassian Rovo Free
+
+        totalMonthlyCost = jiraMonthlyCost + confluenceMonthlyCost + guardMonthlyCost + rovoMonthlyCost;
+
+        // Add Jira Premium
         resources.push({
-          resourceId: 'jira-software',
-          name: 'Jira Software',
+          resourceId: 'jira-premium',
+          name: 'Jira Premium',
           type: 'Atlassian Product',
-          cost: jiraCost,
+          cost: jiraMonthlyCost,
           tags: {
             productKey: 'jira-software',
-            tier: 'Standard',
+            tier: 'Premium',
             users: actualUserCount.toString(),
-            pricePerUser: productPricing['jira-software'].basePrice.toString(),
-            source: 'Jira API'
+            monthlyCost: jiraMonthlyCost.toString(),
+            source: 'Jira API',
+            billingCycle: 'monthly'
           }
         });
 
+        // Add Confluence Free (shows $0 but still tracked)
         resources.push({
-          resourceId: 'confluence',
-          name: 'Confluence',
+          resourceId: 'confluence-free',
+          name: 'Confluence Free',
           type: 'Atlassian Product',
-          cost: confluenceCost,
+          cost: confluenceMonthlyCost,
           tags: {
             productKey: 'confluence',
+            tier: 'Free',
+            users: actualUserCount.toString(),
+            monthlyCost: confluenceMonthlyCost.toString(),
+            source: 'Jira API',
+            billingCycle: 'monthly'
+          }
+        });
+
+        // Add Atlassian Guard Standard
+        resources.push({
+          resourceId: 'atlassian-guard-standard',
+          name: 'Atlassian Guard Standard',
+          type: 'Atlassian Product',
+          cost: guardMonthlyCost,
+          tags: {
+            productKey: 'atlassian-guard',
             tier: 'Standard',
             users: actualUserCount.toString(),
-            pricePerUser: productPricing['confluence'].basePrice.toString(),
-            source: 'Jira API'
+            monthlyCost: guardMonthlyCost.toString(),
+            source: 'Jira API',
+            billingCycle: 'monthly'
+          }
+        });
+
+        // Add Atlassian Rovo Free
+        resources.push({
+          resourceId: 'atlassian-rovo-free',
+          name: 'Atlassian Rovo Free',
+          type: 'Atlassian Product',
+          cost: rovoMonthlyCost,
+          tags: {
+            productKey: 'atlassian-rovo',
+            tier: 'Free',
+            monthlyCost: rovoMonthlyCost.toString(),
+            source: 'Jira API',
+            billingCycle: 'monthly'
           }
         });
       } catch (jiraError) {
@@ -175,38 +239,23 @@ async function collectAtlassianCosts(credentials) {
 
     // If still no data found, provide default estimated costs
     if (resources.length === 0) {
-      // Default estimate: Jira Software + Confluence for 10 users
-      const estimatedUsers = 10;
-      const jiraCost = productPricing['jira-software'].basePrice * estimatedUsers;
-      const confluenceCost = productPricing['confluence'].basePrice * estimatedUsers;
-      totalMonthlyCost = jiraCost + confluenceCost;
+      // Default estimate: Jira Premium (1 user) based on typical small team setup
+      const estimatedUsers = 1;
+      const jiraMonthlyCost = 3.43;  // Jira Premium for 1 user
+      totalMonthlyCost = jiraMonthlyCost;
       userCount = estimatedUsers;
 
       resources.push({
-        resourceId: 'jira-software-estimated',
-        name: 'Jira Software (Estimated)',
+        resourceId: 'jira-premium-estimated',
+        name: 'Jira Premium (Estimated)',
         type: 'Atlassian Product',
-        cost: jiraCost,
+        cost: jiraMonthlyCost,
         tags: {
           productKey: 'jira-software',
-          tier: 'Standard',
+          tier: 'Premium',
           users: estimatedUsers.toString(),
-          pricePerUser: productPricing['jira-software'].basePrice.toString(),
-          note: 'Estimated - configure Cloud ID for accurate data'
-        }
-      });
-
-      resources.push({
-        resourceId: 'confluence-estimated',
-        name: 'Confluence (Estimated)',
-        type: 'Atlassian Product',
-        cost: confluenceCost,
-        tags: {
-          productKey: 'confluence',
-          tier: 'Standard',
-          users: estimatedUsers.toString(),
-          pricePerUser: productPricing['confluence'].basePrice.toString(),
-          note: 'Estimated - configure Cloud ID for accurate data'
+          monthlyCost: jiraMonthlyCost.toString(),
+          note: 'Estimated - configure credentials for accurate data'
         }
       });
     }
