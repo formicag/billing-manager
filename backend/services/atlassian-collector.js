@@ -115,13 +115,72 @@ async function collectAtlassianCosts(credentials) {
       }
     }
 
-    // If no data found, provide estimated costs based on common setup
+    // If no data found from Org Admin API, try Jira API fallback
+    if (resources.length === 0 && credentials.orgId) {
+      console.log('Falling back to Jira API for user count...');
+      try {
+        // Try to get user count from Jira API
+        const jiraUrl = `https://${credentials.orgId}.atlassian.net/rest/api/3/users/search`;
+        const jiraResponse = await axios.get(jiraUrl, {
+          headers,
+          params: { maxResults: 1000 }
+        });
+
+        const users = jiraResponse.data || [];
+        // Count only active human users (not bots/apps)
+        const humanUsers = users.filter(u =>
+          u.accountType === 'atlassian' && u.active
+        );
+        const actualUserCount = humanUsers.length || 1;
+        console.log(`Found ${actualUserCount} active human users via Jira API`);
+
+        // Estimate Jira + Confluence costs based on actual users
+        const jiraCost = productPricing['jira-software'].basePrice * actualUserCount;
+        const confluenceCost = productPricing['confluence'].basePrice * actualUserCount;
+        totalMonthlyCost = jiraCost + confluenceCost;
+        userCount = actualUserCount;
+
+        resources.push({
+          resourceId: 'jira-software',
+          name: 'Jira Software',
+          type: 'Atlassian Product',
+          cost: jiraCost,
+          tags: {
+            productKey: 'jira-software',
+            tier: 'Standard',
+            users: actualUserCount.toString(),
+            pricePerUser: productPricing['jira-software'].basePrice.toString(),
+            source: 'Jira API'
+          }
+        });
+
+        resources.push({
+          resourceId: 'confluence',
+          name: 'Confluence',
+          type: 'Atlassian Product',
+          cost: confluenceCost,
+          tags: {
+            productKey: 'confluence',
+            tier: 'Standard',
+            users: actualUserCount.toString(),
+            pricePerUser: productPricing['confluence'].basePrice.toString(),
+            source: 'Jira API'
+          }
+        });
+      } catch (jiraError) {
+        console.log('Jira API fallback also failed:', jiraError.message);
+        // Fall through to default estimates below
+      }
+    }
+
+    // If still no data found, provide default estimated costs
     if (resources.length === 0) {
       // Default estimate: Jira Software + Confluence for 10 users
       const estimatedUsers = 10;
       const jiraCost = productPricing['jira-software'].basePrice * estimatedUsers;
       const confluenceCost = productPricing['confluence'].basePrice * estimatedUsers;
       totalMonthlyCost = jiraCost + confluenceCost;
+      userCount = estimatedUsers;
 
       resources.push({
         resourceId: 'jira-software-estimated',
