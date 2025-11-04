@@ -124,10 +124,27 @@ const apiService = {
   },
 
   async saveCredential(serviceId, credentials, credentialType) {
-    const response = await api.post(`/api/credentials/${serviceId}`, {
-      credentials,
+    // Extract service-specific metadata fields that should be sent separately
+    const {
+      billingAccountId,
+      customerId,
+      adminEmail,
+      accountId,
+      ...actualCredentials
+    } = credentials;
+
+    const payload = {
+      credentials: actualCredentials,
       credentialType,
-    });
+    };
+
+    // Add service-specific metadata
+    if (billingAccountId) payload.billingAccountId = billingAccountId;
+    if (customerId) payload.customerId = customerId;
+    if (adminEmail) payload.adminEmail = adminEmail;
+    if (accountId) payload.accountId = accountId;
+
+    const response = await api.post(`/api/credentials/${serviceId}`, payload);
     return response.data;
   },
 

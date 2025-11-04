@@ -122,9 +122,13 @@ Visit your app at: `https://YOUR-PROJECT.web.app`
 3. **Trigger First Collection**
    - Dashboard → "Refresh All"
    - Or click refresh on individual service
+   - Watch health indicators turn green as collections succeed
 
 4. **View Costs**
-   - Dashboard shows summary
+   - Dashboard shows summary with health status indicators
+   - Green chip = successful collection
+   - Red chip = failed collection (hover to see error)
+   - Gray chip = no collection status yet
    - Click service card for details
    - Use date picker for date range
    - Filter by tags if needed
@@ -173,6 +177,12 @@ node --version  # Should be 18+
 2. Verify `.env` file exists in frontend
 3. Check REACT_APP_API_URL matches backend URL
 
+### Costs not collecting
+1. Check health status indicator on service card (red = error)
+2. Hover over red indicator to see error message
+3. Verify credentials are configured correctly
+4. Check service API access is enabled
+
 ## Development Tips
 
 ### Hot Reload
@@ -201,6 +211,14 @@ curl http://localhost:8080/api/services
 
 # Get costs
 curl http://localhost:8080/api/costs
+
+# Get collection statuses
+curl http://localhost:8080/api/costs/status/all
+
+# Trigger cost collection
+curl -X POST http://localhost:8080/api/costs/collect \
+  -H "Content-Type: application/json" \
+  -d '{"serviceId": "aws"}'
 ```
 
 ## Project Structure

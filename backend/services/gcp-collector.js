@@ -1,5 +1,6 @@
 // services/gcp-collector.js - GCP Cloud Billing integration
 const { BigQuery } = require('@google-cloud/bigquery');
+const { BudgetServiceClient } = require('@google-cloud/billing-budgets');
 
 /**
  * Collect GCP costs for a given date range using BigQuery export
@@ -168,6 +169,82 @@ async function collectGCPCosts(credentials, billingAccountId, startDate, endDate
 }
 
 /**
+ * Get GCP Budgets for a billing account
+ */
+async function getGCPBudgets(credentials, billingAccountId) {
+  if (!billingAccountId) {
+    console.warn('GCP Billing Account ID not provided, skipping budget collection');
+    return [];
+  }
+
+  try {
+    const budgetClient = new BudgetServiceClient({
+      credentials,
+      projectId: credentials.project_id,
+    });
+
+    const parent = `billingAccounts/${billingAccountId}`;
+    const [budgets] = await budgetClient.listBudgets({ parent });
+
+    if (!budgets || budgets.length === 0) {
+      return [];
+    }
+
+    return budgets.map(budget => {
+      // Extract budget details
+      const budgetAmount = budget.amount?.specifiedAmount?.units
+        ? parseInt(budget.amount.specifiedAmount.units)
+        : 0;
+
+      // GCP budgets don't directly provide actual/forecasted spend in the budget object
+      // We'll need to get this from the cost data or use budget thresholds
+      // For now, return the budget structure and we'll attach actual spend later
+      return {
+        budgetName: budget.displayName || budget.name?.split('/').pop() || 'Unnamed Budget',
+        budgetLimit: budgetAmount,
+        budgetType: 'COST',
+        timeUnit: 'MONTHLY', // Most GCP budgets are monthly
+        currency: budget.amount?.specifiedAmount?.currencyCode || 'USD',
+        // These will be populated from actual cost data
+        actualSpend: 0,
+        forecastedSpend: 0,
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching GCP budgets:', error);
+    return [];
+  }
+}
+
+/**
+ * Get GCP Cost Forecast
+ * Note: GCP doesn't have a direct forecast API like AWS.
+ * Forecasts are calculated within budgets, so we'll compute a simple forecast
+ * based on current spend trajectory.
+ */
+async function getGCPForecast(credentials, billingAccountId, currentMonthSpend) {
+  try {
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+    // Simple linear forecast: (current spend / days elapsed) * total days in month
+    const dailyAverage = currentMonthSpend / dayOfMonth;
+    const forecastedAmount = dailyAverage * daysInMonth;
+
+    return {
+      forecastedAmount: Math.round(forecastedAmount * 100) / 100,
+      currency: 'USD',
+      method: 'linear_projection',
+      note: 'GCP does not provide direct forecast API. This is a linear projection based on current spend rate.',
+    };
+  } catch (error) {
+    console.error('Error calculating GCP forecast:', error);
+    return null;
+  }
+}
+
+/**
  * Collect costs for the current month to date
  */
 async function collectCurrentMonthCosts(credentials, billingAccountId) {
@@ -179,7 +256,36 @@ async function collectCurrentMonthCosts(credentials, billingAccountId) {
   const startDate = startOfMonth.toISOString().split('T')[0];
   const endDate = tomorrow.toISOString().split('T')[0];
 
-  return collectGCPCosts(credentials, billingAccountId, startDate, endDate);
+  // Collect costs, budgets in parallel
+  const [costsResult, budgets] = await Promise.all([
+    collectGCPCosts(credentials, billingAccountId, startDate, endDate),
+    getGCPBudgets(credentials, billingAccountId),
+  ]);
+
+  // Calculate total current month spend for forecasting
+  const totalMonthSpend = costsResult.costs.reduce((sum, cost) => sum + (cost.totalCost || 0), 0);
+
+  // Get forecast based on current spending
+  const forecast = await getGCPForecast(credentials, billingAccountId, totalMonthSpend);
+
+  // Update budgets with actual spend
+  if (budgets.length > 0) {
+    budgets.forEach(budget => {
+      budget.actualSpend = totalMonthSpend;
+      budget.forecastedSpend = forecast?.forecastedAmount || 0;
+    });
+  }
+
+  // Attach forecast and budgets to each cost entry
+  if (forecast || budgets.length > 0) {
+    costsResult.costs = costsResult.costs.map(cost => ({
+      ...cost,
+      forecast: forecast,
+      budgets: budgets,
+    }));
+  }
+
+  return costsResult;
 }
 
 /**
@@ -200,4 +306,6 @@ module.exports = {
   collectGCPCosts,
   collectCurrentMonthCosts,
   collectYesterdayCosts,
+  getGCPBudgets,
+  getGCPForecast,
 };

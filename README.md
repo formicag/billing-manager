@@ -5,6 +5,7 @@ Multi-cloud cost tracking and billing management application with dark mode UI.
 ## Features
 
 - **Multi-Service Support**: Track costs across AWS, GCP, Atlassian, Google Workspace, ChatGPT, and Cohere
+- **Health Status Indicators**: Visual green/red indicators on service cards showing collection success/failure status
 - **Budget & Alerts Display**: View configured budgets, alert thresholds, and notification channels for AWS and GCP
 - **Dashboard**: Real-time overview of all services and costs
 - **Cost Analytics**: Detailed cost breakdowns with charts and resource-level insights
@@ -149,10 +150,15 @@ Go to **Schedules** and configure how often to collect costs:
 Dashboard shows:
 - Total costs across all services
 - Cost per service
+- Health status indicators (green=success, red=failure, gray=unknown)
 - Last collection timestamp
 - Predicted monthly costs
 
-Click on a service for detailed breakdown.
+Click on a service for detailed breakdown. Hover over health indicators to see:
+- Last collection timestamp
+- Number of costs collected
+- Error messages (if collection failed)
+- Warnings (if applicable)
 
 ### 4. Import Historical Data
 
@@ -172,7 +178,9 @@ Use **Backfill** to import past cost data:
 - `GET /api/costs` - Get cost data
 - `GET /api/costs/summary` - Cost summary by service
 - `GET /api/costs/:serviceId/resources` - Resource-level costs
-- `POST /api/costs/collect` - Trigger collection (supports AWS & GCP)
+- `POST /api/costs/collect` - Trigger collection (supports all services)
+- `GET /api/costs/status/all` - Get collection status for all services
+- `DELETE /api/costs/:costId` - Delete a cost entry
 
 ### Budgets
 - `GET /api/budgets` - Get all budgets across services
@@ -265,9 +273,12 @@ frontend/src/
 - Review backend logs
 
 ### Costs Not Collecting
+- Check health status indicator on service card (red = failure)
+- Hover over health indicator to see error message
 - Ensure credentials are configured
 - Check schedule is enabled
 - Verify service API access
+- Review backend logs for detailed errors
 
 ## Decommissioning
 
@@ -297,6 +308,7 @@ For issues or questions:
 - [x] Budget alerts and notifications display
 - [x] AWS Cost Explorer integration
 - [x] GCP BigQuery billing export integration
+- [x] Health status indicators for cost collection monitoring
 - [ ] Cost optimization recommendations
 - [ ] Email/Slack notifications for budget thresholds
 - [ ] Multi-user support with authentication

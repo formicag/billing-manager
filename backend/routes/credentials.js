@@ -57,7 +57,7 @@ router.get('/:serviceId', async (req, res) => {
 router.post('/:serviceId', async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { credentials, credentialType, customerId, adminEmail, billingAccountId } = req.body;
+    const { credentials, credentialType, customerId, adminEmail, billingAccountId, accountId } = req.body;
     const firestore = req.app.locals.firestore;
     const secretManager = req.app.locals.secretManager;
     const projectId = req.app.locals.projectId;
@@ -118,6 +118,7 @@ router.post('/:serviceId', async (req, res) => {
     if (customerId) metadata.customerId = customerId;
     if (adminEmail) metadata.adminEmail = adminEmail;
     if (billingAccountId) metadata.billingAccountId = billingAccountId;
+    if (accountId) metadata.accountId = accountId;
 
     await firestore.collection('credentials').doc(serviceId).set(metadata);
 
@@ -156,7 +157,8 @@ router.post('/:serviceId/reveal', async (req, res) => {
       });
     }
 
-    const { secretName } = doc.data();
+    const credData = doc.data();
+    const { secretName, accountId, billingAccountId, customerId, adminEmail } = credData;
 
     // Access secret from Secret Manager
     const [version] = await secretManager.accessSecretVersion({
@@ -165,9 +167,20 @@ router.post('/:serviceId/reveal', async (req, res) => {
 
     const credentials = JSON.parse(version.payload.data.toString('utf8'));
 
+    // Merge credentials with metadata fields
+    const fullCredentials = {
+      ...credentials,
+    };
+
+    // Add metadata fields if they exist
+    if (accountId) fullCredentials.accountId = accountId;
+    if (billingAccountId) fullCredentials.billingAccountId = billingAccountId;
+    if (customerId) fullCredentials.customerId = customerId;
+    if (adminEmail) fullCredentials.adminEmail = adminEmail;
+
     res.json({
       serviceId,
-      credentials,
+      credentials: fullCredentials,
       warning: 'These credentials are displayed temporarily. Do not share them.'
     });
   } catch (error) {

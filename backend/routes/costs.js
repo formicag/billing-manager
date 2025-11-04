@@ -200,7 +200,7 @@ router.post('/collect', async (req, res) => {
 
     // Get credentials from Secret Manager
     const credData = credDoc.data();
-    const { secretName, billingAccountId } = credData;
+    const { secretName, billingAccountId, accountId } = credData;
     const [version] = await secretManager.accessSecretVersion({
       name: `projects/${projectId}/secrets/${secretName}/versions/latest`
     });
@@ -209,6 +209,10 @@ router.post('/collect', async (req, res) => {
     // Collect costs based on service type
     let result;
     if (serviceId === 'aws') {
+      // Add accountId to credentials if it exists in metadata
+      if (accountId) {
+        credentials.accountId = accountId;
+      }
       result = await collectAWSCosts(credentials);
     } else if (serviceId === 'gcp') {
       if (!billingAccountId) {

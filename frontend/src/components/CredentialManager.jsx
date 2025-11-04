@@ -56,6 +56,7 @@ const CREDENTIAL_FIELDS = {
     { key: 'projectId', label: 'Project ID', type: 'text', required: true },
     { key: 'clientEmail', label: 'Client Email', type: 'text', required: true },
     { key: 'privateKey', label: 'Private Key', type: 'textarea', required: true },
+    { key: 'billingAccountId', label: 'Billing Account ID (for budgets)', type: 'text', required: false, helperText: 'Required for GCP Budget API (e.g., 01ABC2-34DEF5-6789GH)' },
   ],
   atlassian: [
     { key: 'email', label: 'Email', type: 'text', required: true },
