@@ -4,6 +4,14 @@ const { BudgetServiceClient } = require('@google-cloud/billing-budgets');
 
 /**
  * Collect GCP costs for a given date range using BigQuery export
+ *
+ * IMPORTANT: This collects costs for ALL projects under your billing account,
+ * not just the project specified in credentials. The projectId in credentials
+ * is only used to identify where the BigQuery billing export dataset lives.
+ *
+ * The BigQuery billing export table automatically aggregates costs from all
+ * projects linked to your billing account.
+ *
  * Note: This requires Cloud Billing export to BigQuery to be set up
  * @param {Object} credentials - GCP service account credentials
  * @param {string} billingAccountId - GCP billing account ID
@@ -18,15 +26,20 @@ async function collectGCPCostsFromBigQuery(credentials, billingAccountId, startD
   });
 
   // The billing export table name format
+  // Note: projectId here is where the BigQuery dataset lives, NOT which projects to track
+  // The table automatically contains costs from ALL projects under the billing account
   const projectId = credentials.project_id;
   const datasetId = 'billing_data';
   const tableId = `gcp_billing_export_v1_${billingAccountId.replace(/-/g, '_')}`;
   const tableRef = `${projectId}.${datasetId}.${tableId}`;
 
-  // Query to get daily costs grouped by service
+  // Query to get daily costs grouped by service and project
+  // This shows costs from ALL projects under the billing account
   const query = `
     SELECT
       DATE(usage_start_time) as usage_date,
+      project.id as project_id,
+      project.name as project_name,
       service.description as service_name,
       sku.description as sku_description,
       SUM(cost) as cost,
@@ -38,9 +51,9 @@ async function collectGCPCostsFromBigQuery(credentials, billingAccountId, startD
       AND DATE(usage_start_time) < @endDate
       AND cost > 0
     GROUP BY
-      usage_date, service_name, sku_description, currency
+      usage_date, project_id, project_name, service_name, sku_description, currency
     ORDER BY
-      usage_date, service_name, cost DESC
+      usage_date, cost DESC
   `;
 
   const options = {
@@ -70,11 +83,13 @@ async function collectGCPCostsFromBigQuery(credentials, billingAccountId, startD
 
       costsByDate[dateStr].totalCost += row.cost;
       costsByDate[dateStr].resources.push({
-        resourceId: row.service_name,
+        resourceId: `${row.project_id}-${row.service_name}`,
         name: row.service_name,
         type: 'GCP Service',
         cost: row.cost,
         tags: {
+          project_id: row.project_id,
+          project_name: row.project_name,
           sku: row.sku_description,
         },
       });

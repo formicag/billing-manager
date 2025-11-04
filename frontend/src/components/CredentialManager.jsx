@@ -53,10 +53,10 @@ const CREDENTIAL_FIELDS = {
     { key: 'accountId', label: 'AWS Account ID (for budgets)', type: 'text', required: false, helperText: 'Required for AWS Budgets API (e.g., 016164185850)' },
   ],
   gcp: [
-    { key: 'projectId', label: 'Project ID', type: 'text', required: true },
-    { key: 'clientEmail', label: 'Client Email', type: 'text', required: true },
-    { key: 'privateKey', label: 'Private Key', type: 'textarea', required: true },
-    { key: 'billingAccountId', label: 'Billing Account ID (for budgets)', type: 'text', required: false, helperText: 'Required for GCP Budget API (e.g., 01ABC2-34DEF5-6789GH)' },
+    { key: 'projectId', label: 'BigQuery Export Project ID', type: 'text', required: true, helperText: 'The project where your BigQuery billing export is configured. Costs from ALL projects under your billing account will be tracked.' },
+    { key: 'clientEmail', label: 'Service Account Email', type: 'text', required: true, helperText: 'From your service account JSON key file' },
+    { key: 'privateKey', label: 'Private Key', type: 'textarea', required: true, helperText: 'From your service account JSON key file (including BEGIN/END lines)' },
+    { key: 'billingAccountId', label: 'Billing Account ID', type: 'text', required: true, helperText: 'Required to track costs across ALL projects (e.g., 01ABC2-34DEF5-6789GH). Find at console.cloud.google.com/billing' },
   ],
   atlassian: [
     { key: 'email', label: 'Email', type: 'text', required: true },
