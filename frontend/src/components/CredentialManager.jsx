@@ -50,6 +50,7 @@ const CREDENTIAL_FIELDS = {
     { key: 'accessKeyId', label: 'Access Key ID', type: 'text', required: true },
     { key: 'secretAccessKey', label: 'Secret Access Key', type: 'password', required: true },
     { key: 'region', label: 'Region', type: 'text', required: true, default: 'us-east-1' },
+    { key: 'accountId', label: 'AWS Account ID (for budgets)', type: 'text', required: false, helperText: 'Required for AWS Budgets API (e.g., 016164185850)' },
   ],
   gcp: [
     { key: 'projectId', label: 'Project ID', type: 'text', required: true },
@@ -374,6 +375,7 @@ const CredentialManager = () => {
                 margin="normal"
                 label={field.label}
                 required={field.required}
+                helperText={field.helperText}
                 type={
                   field.type === 'password' && !showPassword[field.key]
                     ? 'password'
