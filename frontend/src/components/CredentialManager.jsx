@@ -43,6 +43,7 @@ const SUPPORTED_SERVICES = [
   { id: 'google-workspace', name: 'Google Workspace', icon: '📧' },
   { id: 'chatgpt', name: 'ChatGPT', icon: '🤖' },
   { id: 'cohere', name: 'Cohere', icon: '🧠' },
+  { id: 'anthropic', name: 'Anthropic Claude', icon: '🎭' },
 ];
 
 const CREDENTIAL_FIELDS = {
@@ -74,6 +75,9 @@ const CREDENTIAL_FIELDS = {
   ],
   cohere: [
     { key: 'apiKey', label: 'API Key', type: 'password', required: true },
+  ],
+  anthropic: [
+    { key: 'apiKey', label: 'API Key', type: 'password', required: true, helperText: 'Your Anthropic API key (starts with sk-ant-api...)' },
   ],
 };
 

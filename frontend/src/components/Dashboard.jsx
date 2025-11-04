@@ -144,6 +144,7 @@ const Dashboard = () => {
       'google-workspace': '📧',
       chatgpt: '🤖',
       cohere: '🧠',
+      anthropic: '🎭',
     };
     return icons[serviceId] || '💰';
   };

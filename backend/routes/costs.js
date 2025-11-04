@@ -7,6 +7,7 @@ const { collectCurrentMonthCosts: collectGoogleWorkspaceCosts } = require('../se
 const { collectCurrentMonthCosts: collectAtlassianCosts } = require('../services/atlassian-collector');
 const { collectCurrentMonthCosts: collectChatGPTCosts } = require('../services/chatgpt-collector');
 const { collectCurrentMonthCosts: collectCohereCosts } = require('../services/cohere-collector');
+const { collectCurrentMonthCosts: collectAnthropicCosts } = require('../services/anthropic-collector');
 
 // GET /api/costs - Get cost data with optional filters
 router.get('/', async (req, res) => {
@@ -237,6 +238,8 @@ router.post('/collect', async (req, res) => {
       result = await collectChatGPTCosts(credentials);
     } else if (serviceId === 'cohere') {
       result = await collectCohereCosts(credentials);
+    } else if (serviceId === 'anthropic') {
+      result = await collectAnthropicCosts(credentials);
     } else {
       return res.status(400).json({
         error: `Cost collection not implemented for ${serviceId}`,
