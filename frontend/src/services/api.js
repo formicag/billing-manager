@@ -97,6 +97,21 @@ const apiService = {
     return response.data;
   },
 
+  async getCollectionStatuses() {
+    const response = await api.get('/api/costs/status/all');
+    return response.data;
+  },
+
+  async getCostAnomalies(params = {}) {
+    const response = await api.get('/api/costs/anomalies', { params });
+    return response.data;
+  },
+
+  async getBudgetsForService(serviceId) {
+    const response = await api.get(`/api/costs/${serviceId}/budgets`);
+    return response.data;
+  },
+
   // Credentials
   async getCredentials() {
     const response = await api.get('/api/credentials');
@@ -184,14 +199,9 @@ const apiService = {
     return response.data;
   },
 
-  // Budgets
+  // Budgets (legacy endpoint - may not be implemented)
   async getBudgets() {
     const response = await api.get('/api/budgets');
-    return response.data;
-  },
-
-  async getBudgetsForService(serviceId) {
-    const response = await api.get(`/api/budgets/${serviceId}`);
     return response.data;
   },
 };

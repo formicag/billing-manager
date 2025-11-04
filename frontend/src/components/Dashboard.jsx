@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -29,6 +30,9 @@ import {
   Settings as SettingsIcon,
   Refresh as RefreshIcon,
   TrendingUp as TrendingUpIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -42,6 +46,8 @@ const Dashboard = () => {
   const [services, setServices] = useState([]);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [collectionStatuses, setCollectionStatuses] = useState({});
+  const [anomalies, setAnomalies] = useState([]);
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -59,13 +65,17 @@ const Dashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const [servicesData, summaryData] = await Promise.all([
+      const [servicesData, summaryData, statusesData, anomaliesData] = await Promise.all([
         apiService.getServices(),
         apiService.getCostSummary(),
+        apiService.getCollectionStatuses(),
+        apiService.getCostAnomalies({ threshold: 50 }).catch(() => ({ anomalies: [] })),
       ]);
       // Extract services array from response
       setServices(Array.isArray(servicesData) ? servicesData : (servicesData.services || []));
       setSummary(summaryData);
+      setCollectionStatuses(statusesData.statuses || {});
+      setAnomalies(anomaliesData.anomalies || []);
     } catch (err) {
       setError(err.message);
       toast.error('Failed to load dashboard data: ' + err.message);
@@ -138,6 +148,43 @@ const Dashboard = () => {
     return icons[serviceId] || '💰';
   };
 
+  const getHealthStatus = (serviceId) => {
+    const status = collectionStatuses[serviceId];
+    if (!status) {
+      return {
+        icon: <HelpOutlineIcon />,
+        color: 'default',
+        label: 'Unknown',
+        tooltip: 'No collection status available'
+      };
+    }
+
+    if (status.status === 'success') {
+      return {
+        icon: <CheckCircleIcon />,
+        color: 'success',
+        label: 'Healthy',
+        tooltip: `Last successful collection: ${new Date(status.lastRun).toLocaleString()}\nCosts collected: ${status.costsCollected}${status.warning ? `\nWarning: ${status.warning}` : ''}`
+      };
+    }
+
+    if (status.status === 'error') {
+      return {
+        icon: <ErrorIcon />,
+        color: 'error',
+        label: 'Failed',
+        tooltip: `Last failed collection: ${new Date(status.lastRun).toLocaleString()}\nError: ${status.error}`
+      };
+    }
+
+    return {
+      icon: <HelpOutlineIcon />,
+      color: 'default',
+      label: 'Unknown',
+      tooltip: 'Unknown collection status'
+    };
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
@@ -196,6 +243,28 @@ const Dashboard = () => {
           </Alert>
         ) : (
           <>
+            {/* Cost Anomaly Alerts */}
+            {anomalies.length > 0 && (
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  ⚠️ Cost Spike Detected ({anomalies.length})
+                </Typography>
+                {anomalies.slice(0, 3).map((anomaly, idx) => (
+                  <Box key={idx} sx={{ mb: 1 }}>
+                    <Typography variant="body2">
+                      <strong>{anomaly.serviceId.toUpperCase()}</strong>
+                      {anomaly.resourceName && ` - ${anomaly.resourceName}`}: {anomaly.message}
+                    </Typography>
+                  </Box>
+                ))}
+                {anomalies.length > 3 && (
+                  <Typography variant="caption" color="text.secondary">
+                    + {anomalies.length - 3} more anomalies detected
+                  </Typography>
+                )}
+              </Alert>
+            )}
+
             {/* Summary Statistics */}
             {summary && (
               <>
@@ -348,11 +417,21 @@ const Dashboard = () => {
                               {service.name || service.id.toUpperCase()}
                             </Typography>
                           </Box>
-                          <Chip
-                            label={service.enabled ? 'Active' : 'Inactive'}
-                            color={service.enabled ? 'success' : 'default'}
-                            size="small"
-                          />
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title={getHealthStatus(service.id).tooltip} arrow>
+                              <Chip
+                                icon={getHealthStatus(service.id).icon}
+                                label={getHealthStatus(service.id).label}
+                                color={getHealthStatus(service.id).color}
+                                size="small"
+                              />
+                            </Tooltip>
+                            <Chip
+                              label={service.enabled ? 'Active' : 'Inactive'}
+                              color={service.enabled ? 'success' : 'default'}
+                              size="small"
+                            />
+                          </Box>
                         </Box>
 
                         <Box sx={{ mb: 2 }}>

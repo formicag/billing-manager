@@ -300,33 +300,66 @@ const ServiceDetail = () => {
                   <Typography variant="h6" gutterBottom>
                     Budgets & Alerts
                   </Typography>
-                  {budgets.map((budget, index) => (
+                  {budgets.map((budget, index) => {
+                    const actualPercent = budget.budgetLimit > 0
+                      ? (budget.actualSpend / budget.budgetLimit) * 100
+                      : 0;
+                    const forecastPercent = budget.budgetLimit > 0
+                      ? (budget.forecastedSpend / budget.budgetLimit) * 100
+                      : 0;
+
+                    return (
                     <Box key={index} sx={{ mb: 3, pb: 3, borderBottom: index < budgets.length - 1 ? '1px solid #444' : 'none' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold">
                           {budget.budgetName}
                         </Typography>
-                        {budget.budgetLimit && (
-                          <Chip
-                            label={`${budget.budgetLimit.currency} ${budget.budgetLimit.amount.toFixed(2)} / ${budget.timeUnit || budget.calendarPeriod || 'MONTHLY'}`}
-                            color="primary"
-                            variant="outlined"
-                          />
-                        )}
+                        <Chip
+                          label={`${budget.currency} ${budget.budgetLimit.toFixed(2)} / ${budget.timeUnit}`}
+                          color="primary"
+                          variant="outlined"
+                        />
                       </Box>
 
-                      {/* AWS Budget Details */}
-                      {budget.serviceId === 'aws' && budget.calculatedSpend && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Actual Spend: ${budget.calculatedSpend.actualSpend.toFixed(2)}
+                      <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Actual Spend: {formatCurrency(budget.actualSpend)}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Forecasted Spend: ${budget.calculatedSpend.forecastedSpend.toFixed(2)}
-                          </Typography>
+                          <Chip
+                            label={`${actualPercent.toFixed(1)}%`}
+                            size="small"
+                            color={actualPercent > 100 ? 'error' : actualPercent > 80 ? 'warning' : 'success'}
+                          />
                         </Box>
-                      )}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Forecasted Spend: {formatCurrency(budget.forecastedSpend)}
+                          </Typography>
+                          <Chip
+                            label={`${forecastPercent.toFixed(1)}%`}
+                            size="small"
+                            color={forecastPercent > 100 ? 'error' : forecastPercent > 80 ? 'warning' : 'info'}
+                          />
+                        </Box>
+                      </Box>
 
+                    </Box>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Original budget display for backward compatibility - remove this section if using new format */}
+            {budgets.length > 0 && budgets[0].thresholds && (
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Budget Alert Details
+                  </Typography>
+                  {budgets.map((budget, index) => (
+                    <Box key={index}>
                       {/* Thresholds */}
                       {budget.thresholds && budget.thresholds.length > 0 && (
                         <Box sx={{ mb: 2 }}>

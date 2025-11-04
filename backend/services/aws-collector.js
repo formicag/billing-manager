@@ -1,5 +1,6 @@
 // services/aws-collector.js - AWS Cost Explorer integration
-const { CostExplorerClient, GetCostAndUsageCommand } = require('@aws-sdk/client-cost-explorer');
+const { CostExplorerClient, GetCostAndUsageCommand, GetCostForecastCommand } = require('@aws-sdk/client-cost-explorer');
+const { BudgetsClient, DescribeBudgetsCommand } = require('@aws-sdk/client-budgets');
 
 /**
  * Collect AWS costs for a given date range
@@ -100,6 +101,91 @@ async function collectAWSCosts(credentials, startDate, endDate) {
 }
 
 /**
+ * Get AWS Cost Forecast for the current month
+ */
+async function getAWSForecast(credentials) {
+  const { accessKeyId, secretAccessKey, region, accountId } = credentials;
+
+  const client = new CostExplorerClient({
+    region: region || 'us-east-1',
+    credentials: { accessKeyId, secretAccessKey },
+  });
+
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const command = new GetCostForecastCommand({
+      TimePeriod: {
+        Start: startOfMonth.toISOString().split('T')[0],
+        End: endOfMonth.toISOString().split('T')[0],
+      },
+      Metric: 'UNBLENDED_COST',
+      Granularity: 'MONTHLY',
+    });
+
+    const response = await client.send(command);
+
+    if (response.Total && response.Total.Amount) {
+      return {
+        forecastedAmount: parseFloat(response.Total.Amount),
+        currency: response.Total.Unit || 'USD',
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching AWS forecast:', error);
+    return null;
+  }
+}
+
+/**
+ * Get AWS Budgets
+ */
+async function getAWSBudgets(credentials) {
+  const { accessKeyId, secretAccessKey, region, accountId } = credentials;
+
+  if (!accountId) {
+    console.warn('AWS Account ID not provided, skipping budget collection');
+    return [];
+  }
+
+  const client = new BudgetsClient({
+    region: region || 'us-east-1',
+    credentials: { accessKeyId, secretAccessKey },
+  });
+
+  try {
+    const command = new DescribeBudgetsCommand({
+      AccountId: accountId,
+    });
+
+    const response = await client.send(command);
+
+    if (response.Budgets && response.Budgets.length > 0) {
+      return response.Budgets.map(budget => ({
+        budgetName: budget.BudgetName,
+        budgetLimit: parseFloat(budget.BudgetLimit.Amount),
+        budgetType: budget.BudgetType,
+        timeUnit: budget.TimeUnit,
+        actualSpend: budget.CalculatedSpend?.ActualSpend
+          ? parseFloat(budget.CalculatedSpend.ActualSpend.Amount)
+          : 0,
+        forecastedSpend: budget.CalculatedSpend?.ForecastedSpend
+          ? parseFloat(budget.CalculatedSpend.ForecastedSpend.Amount)
+          : 0,
+        currency: budget.BudgetLimit.Unit || 'USD',
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching AWS budgets:', error);
+    return [];
+  }
+}
+
+/**
  * Collect costs for the current month to date
  */
 async function collectCurrentMonthCosts(credentials) {
@@ -111,7 +197,23 @@ async function collectCurrentMonthCosts(credentials) {
   const startDate = startOfMonth.toISOString().split('T')[0];
   const endDate = tomorrow.toISOString().split('T')[0];
 
-  return collectAWSCosts(credentials, startDate, endDate);
+  // Collect costs, forecast, and budgets in parallel
+  const [costsResult, forecast, budgets] = await Promise.all([
+    collectAWSCosts(credentials, startDate, endDate),
+    getAWSForecast(credentials),
+    getAWSBudgets(credentials),
+  ]);
+
+  // Attach forecast and budgets to each cost entry
+  if (forecast || budgets.length > 0) {
+    costsResult.costs = costsResult.costs.map(cost => ({
+      ...cost,
+      forecast: forecast,
+      budgets: budgets,
+    }));
+  }
+
+  return costsResult;
 }
 
 /**
@@ -132,4 +234,6 @@ module.exports = {
   collectAWSCosts,
   collectCurrentMonthCosts,
   collectYesterdayCosts,
+  getAWSForecast,
+  getAWSBudgets,
 };
